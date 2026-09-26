@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SVPM'S College Route Navigator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+    <div class="header-inner">
+        <div class="logo">
+            <div class="logo-pin">📍</div>
+            <div>
+                <div class="logo-name" data-i18n="appName">SVPM'S College Route Navigator</div>
+                <div class="logo-sub" data-i18n="campus">Malegaon Campus (Bk)</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <!-- Language switcher -->
+            <div class="lang-switcher" id="langSwitcher">
+                <button class="lang-btn active" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" onclick="setLang('mr')">मरा</button>
+                <button class="lang-btn" onclick="setLang('hi')">हिं</button>
+            </div>
+            <button class="header-loc-btn" id="headerLocBtn" title="My Location">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
+                    <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- ===== PAGES ===== -->
+<main class="main-content">
+
+    <!-- PAGE 1: MAP -->
+    <div class="page active" id="page-map">
+        <!-- Search bar over map -->
+        <div class="map-search-bar">
+            <div class="map-search-inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="s-icon">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" id="mapSearchInput" placeholder="Search buildings, departments..." data-i18n-ph="searchPh">
+                <div class="search-results-dropdown" id="mapSearchResults"></div>
+            </div>
+            <!-- Quick Location Dropdown -->
+            <div class="map-dropdown-wrap">
+                <div class="map-dropdown-inner">
+                    <span class="dropdown-icon">🏢</span>
+                    <select id="locationDropdown" onchange="dropdownPickLocation(this.value)">
+                        <option value="" data-i18n="dropdownDefault">— Quick Go to Location —</option>
+                    </select>
+                    <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <div class="map-pill-btns">
+                <button class="pill-btn active" id="pillAll"   onclick="filterMarkers('all')" data-i18n="catAll">All</button>
+                <button class="pill-btn"         id="pillAcad" onclick="filterMarkers('academic')">🎓 <span data-i18n="catAcad">Academic</span></button>
+                <button class="pill-btn"         id="pillFood" onclick="filterMarkers('food')">🍽️ <span data-i18n="catFood">Food</span></button>
+                <button class="pill-btn"         id="pillHost" onclick="filterMarkers('hostel')">🏠 <span data-i18n="catHostel">Hostel</span></button>
+                <button class="pill-btn"         id="pillSpt"  onclick="filterMarkers('sports')">⚽ <span data-i18n="catSports">Sports</span></button>
+            </div>
+        </div>
+        <!-- Map -->
+        <div id="map"></div>
+
+        <!-- Direction Arrow Overlay — shown while navigating -->
+        <!-- Map controls -->
+        <div class="map-fab-group">
+            <button class="fab" id="fabSat" title="Toggle Satellite">🛰️</button>
+            <!-- Fit all buildings -->
+            <button class="fab" id="fabFitAll" title="Show all buildings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                </svg>
+            </button>
+            <!-- Snap to me during navigation -->
+            <button class="fab" id="fabSnapToMe" title="Show my location on route">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M12 2L8 8H3l4 3.5L5.5 18 12 14.5 18.5 18 17 11.5 21 8h-5L12 2z"/>
+                </svg>
+            </button>
+            <!-- My location -->
+            <button class="fab fab-location" id="fabCenter" title="My Location">
+                <span class="fab-loc-icon" id="fabLocIcon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="7"/>
+                        <line x1="12" y1="1" x2="12" y2="5"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="1" y1="12" x2="5" y2="12"/>
+                        <line x1="19" y1="12" x2="23" y2="12"/>
+                    </svg>
+                </span>
+                <span class="fab-loc-pulse" id="fabLocPulse"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- PAGE 2: DIRECTORY -->
+    <div class="page" id="page-directory">
+        <div class="page-scroll">
+            <div class="dir-search-wrap">
+                <div class="dir-search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="s-icon">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="dirSearchInput" placeholder="Search all locations...">
+                </div>
+                <!-- Category filter chips -->
+                <div class="cat-chips" id="catChips">
+                    <button class="chip active" onclick="dirFilter('all',this)" data-i18n="catAll">All</button>
+                    <button class="chip" onclick="dirFilter('academic',this)">🎓 <span data-i18n="catAcad">Academic</span></button>
+                    <button class="chip" onclick="dirFilter('hostel',this)">🏠 <span data-i18n="catHostel">Hostel</span></button>
+                    <button class="chip" onclick="dirFilter('food',this)">🍽️ <span data-i18n="catFood">Food</span></button>
+                    <button class="chip" onclick="dirFilter('sports',this)">⚽ <span data-i18n="catSports">Sports</span></button>
+                    <button class="chip" onclick="dirFilter('services',this)">🔧 <span data-i18n="catServices">Services</span></button>
+                </div>
+            </div>
+            <div class="dir-count" id="dirCount"><span id="dirCountNum">26</span> <span data-i18n="locations">locations</span></div>
+            <div class="dir-list" id="dirList"></div>
+        </div>
+    </div>
+
+    <!-- PAGE 3: NAVIGATE -->
+    <div class="page" id="page-navigate">
+        <div class="page-scroll">
+            <div class="nav-page-header">
+                <div class="nav-page-title" data-i18n="navTitle">🧭 Get Directions</div>
+                <div class="nav-page-sub" data-i18n="navSub">Walk from your location to any building</div>
+            </div>
+
+            <!-- From -->
+            <div class="route-card">
+                <div class="route-card-label" data-i18n="labelFrom">FROM</div>
+                <div class="route-from-box" id="routeFromBox">
+                    <div class="route-from-dot"></div>
+                    <span id="routeFromText" data-i18n="myLocation">📍 My current location</span>
+                    <div class="loc-status" id="locStatus">—</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="route-arrow">↓</div>
+
+            <!-- To -->
+            <div class="route-card">
+                <div class="route-card-label" data-i18n="labelTo">TO</div>
+                <!-- Dropdown select -->
+                <div class="nav-dropdown-wrap">
+                    <span class="dropdown-icon">🏢</span>
+                    <select id="navLocationDropdown" onchange="dropdownSelectDest(this.value)">
+                        <option value="" data-i18n="dropdownDefault">— Select a location —</option>
+                    </select>
+                    <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="nav-or-divider"><span data-i18n="orSearch">or search</span></div>
+                <div class="route-to-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="s-icon">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="navDestInput" placeholder="Type to search..." data-i18n-ph="searchPh">
+                </div>
+                <div class="dest-results" id="destResults"></div>
+                <div class="dest-chosen" id="destChosen" style="display:none;"></div>
+            </div>
+
+            <!-- Go button — now switches to map + opens drawer like Google Maps -->
+            <button class="go-btn" id="goBtn" onclick="startDirections()">
+                🧭 Show Route on Map
+            </button>
+
+            <!-- Small hint below button -->
+            <div style="text-align:center;font-size:12px;color:var(--t3);margin-top:10px;padding:0 16px;">
+                The map will open with live walking directions overlay
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 4: INFO -->
+    <div class="page" id="page-info">
+        <div class="page-scroll">
+            <!-- Campus card -->
+            <div class="info-hero">
+                <div class="info-hero-icon">🎓</div>
+                <div class="info-hero-title">SVPM Campus</div>
+                <div class="info-hero-sub">Pandharpur, Maharashtra</div>
+                <div class="info-hero-stats">
+                    <div class="hero-stat"><span class="hero-stat-val">26</span><span class="hero-stat-label" data-i18n="statLocations">Locations</span></div>
+                    <div class="hero-stat-sep"></div>
+                    <div class="hero-stat"><span class="hero-stat-val">6+</span><span class="hero-stat-label" data-i18n="statColleges">Colleges</span></div>
+                    <div class="hero-stat-sep"></div>
+                    <div class="hero-stat"><span class="hero-stat-val">3</span><span class="hero-stat-label" data-i18n="statHostels">Hostels</span></div>
+                </div>
+            </div>
+
+            <!-- Quick contacts -->
+            <div class="info-section-title" data-i18n="quickContacts">📞 Quick Contacts</div>
+            <div class="info-cards" id="contactCards">
+                <div class="info-contact-card">
+                    <div class="contact-icon">🏛️</div>
+                    <div class="contact-info">
+                        <div class="contact-name" data-i18n="coeContact">College of Engineering</div>
+                        <div class="contact-role" data-i18n="mainOffice">Main Office</div>
+                    </div>
+                    <a href="tel:" class="contact-call-btn" data-i18n="call">Call</a>
+                </div>
+                <div class="info-contact-card">
+                    <div class="contact-icon">💊</div>
+                    <div class="contact-info">
+                        <div class="contact-name" data-i18n="pharmacyContact">College of Pharmacy</div>
+                        <div class="contact-role" data-i18n="mainOffice">Main Office</div>
+                    </div>
+                    <a href="tel:" class="contact-call-btn" data-i18n="call">Call</a>
+                </div>
+                <div class="info-contact-card">
+                    <div class="contact-icon">🚨</div>
+                    <div class="contact-info">
+                        <div class="contact-name" data-i18n="security">Security</div>
+                        <div class="contact-role" data-i18n="mainGate">Main Gate</div>
+                    </div>
+                    <a href="tel:" class="contact-call-btn" data-i18n="call">Call</a>
+                </div>
+            </div>
+
+            <div class="info-section-title" data-i18n="emergency">🚨 Emergency</div>
+            <div class="emergency-row">
+                <a href="tel:100" class="emergency-btn police">🚔 <span data-i18n="police">Police</span><br><span>100</span></a>
+                <a href="tel:108" class="emergency-btn ambulance">🚑 <span data-i18n="ambulance">Ambulance</span><br><span>108</span></a>
+                <a href="tel:101" class="emergency-btn fire">🚒 <span data-i18n="fire">Fire</span><br><span>101</span></a>
+            </div>
+
+            <div class="info-section-title" data-i18n="allLocations">🏢 All Locations</div>
+            <div class="all-loc-list" id="allLocList"></div>
+
+            <div class="app-info-box">
+                <div class="app-info-title" data-i18n="appInfoTitle">📱 SVPM Campus Navigator</div>
+                <div class="app-info-text" data-i18n="appInfoText">Free campus navigation powered by OpenStreetMap & OSRM. No API key, no payments, works on any device.</div>
+                <div class="app-info-version">v2.0 · <span data-i18n="builtFor">Built for SVPM Students</span></div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ===== BUILDING DETAILS SHEET ===== -->
+<div class="bottom-sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+<div class="bottom-sheet" id="buildingSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-close-btn" id="sheetClose" onclick="closeSheet()">✕</div>
+    <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<!-- ===== ARRIVAL CELEBRATION ===== -->
+<canvas id="confettiCanvas" style="position:fixed;inset:0;z-index:1100;pointer-events:none;"></canvas>
+<div class="arrival-overlay" id="arrivalOverlay">
+    <div class="arrival-card">
+        <div class="arrival-pulse-ring"></div>
+        <div class="arrival-icon-wrap">
+            <div class="arrival-icon" id="arrivalIcon">📍</div>
+        </div>
+        <div class="arrival-msg"  id="arrivalMsg">You've arrived!</div>
+        <div class="arrival-name" id="arrivalName">Destination</div>
+        <div class="arrival-sub"  id="arrivalSub">Great job! You reached your destination.</div>
+        <button class="arrival-close-btn" id="arrivalCloseBtn" onclick="dismissArrival()">Close</button>
+    </div>
+</div>
+
+<!-- ===== DIRECTIONS DRAWER ===== -->
+<div class="dir-drawer" id="dirDrawer">
+    <!-- Mini pull-tab (only visible in mini state) -->
+    <div class="dir-mini-tab" id="dirMiniTab" onclick="expandFromMini()">
+        <div class="dir-mini-info">
+            <span class="dir-mini-dist" id="miniDist">—</span>
+            <span class="dir-mini-sep">·</span>
+            <span class="dir-mini-time" id="miniTime">—</span>
+        </div>
+        <div class="dir-mini-expand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            <span id="miniExpandLabel">expand</span>
+        </div>
+    </div>
+    <div class="dir-drawer-handle" id="drawerHandle">
+        <div class="dir-drawer-handle-bar"></div>
+    </div>
+    <div class="dir-drawer-header">
+        <div class="dir-drawer-title-wrap">
+            <span style="font-size:20px;">🧭</span>
+            <div>
+                <div class="dir-drawer-title" data-i18n="dirTitle">Walking Directions</div>
+                <div class="dir-drawer-dest" id="drawerDest">—</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <!-- Direction arrow toggle -->
+            <button class="dir-drawer-close" id="btnArrowToggle" onclick="toggleDirectionArrow()" title="Toggle direction arrow" style="background:rgba(100,116,139,.15);border-color:rgba(100,116,139,.3);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" width="14" height="14">
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                </svg>
+            </button>
+            <!-- Minimize to tab -->
+            <button class="dir-drawer-close" onclick="minimizeDrawer()" title="Minimize" style="background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2.5" width="14" height="14">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <button class="dir-drawer-close" onclick="closeDrawer()">✕</button>
+        </div>
+    </div>
+    <div class="dir-drawer-summary" id="drawerSummary" style="display:none;">
+        <div class="dsm-box"><div class="dsm-val" id="dDist">—</div><div class="dsm-lbl">Distance</div></div>
+        <div class="dsm-sep"></div>
+        <div class="dsm-box"><div class="dsm-val" id="dTime">—</div><div class="dsm-lbl">Walk Time</div></div>
+        <div class="dsm-sep"></div>
+        <div class="dsm-box"><div class="dsm-val" id="dTurns">—</div><div class="dsm-lbl">Turns</div></div>
+    </div>
+    <div class="dir-drawer-loading" id="drawerLoading"><div class="dir-spin"></div><p>Finding walking route...</p></div>
+    <div id="drawerRecalc" style="display:none;padding:8px 16px;background:rgba(245,158,11,.12);border-bottom:1px solid rgba(245,158,11,.2);font-size:12px;color:#F59E0B;font-weight:600;letter-spacing:.3px;">🔄 <span id="drawerRecalcText">Recalculating route…</span></div>
+    <div class="dir-drawer-error"   id="drawerError"   style="display:none;"><div style="font-size:36px">😕</div><p>Could not find route.<br>Please enable location.</p></div>
+    <div class="dir-drawer-steps"   id="drawerSteps"></div>
+    <div class="dir-drawer-expand-hint" id="drawerHint">↑ Swipe up for all steps</div>
+    <div class="dir-drawer-footer"  id="drawerFooter"  style="display:none;">
+        <button class="cancel-dir-btn" onclick="closeDrawer()">✕ Cancel Route</button>
+    </div>
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav class="bottom-nav">
+    <button class="nav-btn active" onclick="goPage('map',this)" id="navMap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+        </svg>
+        <span data-i18n="navMap">Map</span>
+    </button>
+    <button class="nav-btn" onclick="goPage('directory',this)" id="navDir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span data-i18n="navDirectory">Directory</span>
+    </button>
+    <button class="nav-btn" onclick="goPage('navigate',this)" id="navNav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8l4 4-4 4M8 12h8"/>
+        </svg>
+        <span data-i18n="navNavigate">Navigate</span>
+    </button>
+    <button class="nav-btn" onclick="goPage('info',this)" id="navInfo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span data-i18n="navInfo">Info</span>
+    </button>
+</nav>
+
+<!-- LOADING -->
+<div class="global-loading" id="globalLoading">
+    <div class="gl-spinner"></div>
+    <p>Loading SVPM Campus...</p>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
